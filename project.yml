@@ -1,0 +1,37 @@
+name: ResumeBuilder
+options:
+  bundleIdPrefix: com.resumebuilder
+  deploymentTarget:
+    iOS: "17.0"
+  developmentLanguage: en
+  xcodeVersion: "15.0"
+
+packages: {}
+
+targets:
+  ResumeBuilder:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: ResumeBuilder
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.resumebuilder.app
+      INFOPLIST_FILE: ResumeBuilder/Resources/Info.plist
+      SWIFT_VERSION: "5.9"
+      IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+      TARGETED_DEVICE_FAMILY: "1,2" # iPhone and iPad
+    info:
+      path: ResumeBuilder/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: Resume Builder
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+
