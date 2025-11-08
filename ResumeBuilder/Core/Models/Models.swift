@@ -36,13 +36,20 @@ enum LayoutMode: String, Codable, CaseIterable {
     case freeform
 }
 
+// Link item with label and URL
+struct LinkItem: Codable, Hashable, Identifiable {
+    var id: UUID = .init()
+    var label: String = ""          // e.g., "LinkedIn"
+    var url: String = ""            // e.g., "https://linkedin.com/in/..."
+}
+
 struct Person: Codable, Hashable {
     var fullName: String = "Your Name"
     var headline: String = "iOS Engineer"
     var email: String = "you@example.com"
     var phone: String = "+91-XXXXXXXXXX"
     var location: String = "Pune, India"
-    var links: [String] = ["github.com/yourid", "linkedin.com/in/yourid"]
+    var links: [LinkItem] = []      // <-- now editable, label + url
 }
 
 @Model

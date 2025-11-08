@@ -34,8 +34,39 @@ struct TemplateEditorView: View {
                 TextField("Full name", text: Binding(get: { resume.person.fullName }, set: { resume.person.fullName = $0 }))
                 TextField("Headline", text: Binding(get: { resume.person.headline }, set: { resume.person.headline = $0 }))
                 TextField("Email", text: Binding(get: { resume.person.email }, set: { resume.person.email = $0 }))
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.emailAddress)
+                    .autocorrectionDisabled()
                 TextField("Phone", text: Binding(get: { resume.person.phone }, set: { resume.person.phone = $0 }))
+                    .keyboardType(.phonePad)
                 TextField("Location", text: Binding(get: { resume.person.location }, set: { resume.person.location = $0 }))
+            }
+            
+            // Links editor
+            Section("Links") {
+                if resume.person.links.isEmpty {
+                    Text("Add LinkedIn, GitHub, Medium…")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                
+                ForEach($resume.person.links) { $link in
+                    VStack(alignment: .leading, spacing: 8) {
+                        TextField("Label (e.g., LinkedIn)", text: $link.label)
+                        TextField("URL (https://…)", text: $link.url)
+                            .textInputAutocapitalization(.never)
+                            .keyboardType(.URL)
+                            .autocorrectionDisabled()
+                    }
+                    .padding(.vertical, 4)
+                }
+                .onDelete { idx in resume.person.links.remove(atOffsets: idx) }
+                
+                Button {
+                    resume.person.links.append(.init(label: "LinkedIn", url: "https://"))
+                } label: {
+                    Label("Add Link", systemImage: "link.badge.plus")
+                }
             }
 
             Section("Sections") {
@@ -47,6 +78,35 @@ struct TemplateEditorView: View {
                                 VStack(alignment: .leading, spacing: 6) {
                                     TextField("Headline", text: $item.headline)
                                     TextField("Subheadline", text: Binding($item.subheadline, default: ""))
+                                    
+                                    // Show bullets for editing
+                                    if !item.bullets.isEmpty || section.kind == .skills {
+                                        Text("Bullets:")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                        ForEach(Array(item.bullets.enumerated()), id: \.offset) { index, bullet in
+                                            HStack(alignment: .top, spacing: 6) {
+                                                Text("•")
+                                                    .foregroundStyle(.secondary)
+                                                TextField("Bullet point", text: Binding(
+                                                    get: { item.bullets[index] },
+                                                    set: { item.bullets[index] = $0 }
+                                                ), axis: .vertical)
+                                                .lineLimit(3...6)
+                                            }
+                                        }
+                                        .onDelete { indexSet in
+                                            item.bullets.remove(atOffsets: indexSet)
+                                        }
+                                        Button {
+                                            item.bullets.append("New bullet point")
+                                        } label: {
+                                            Label("Add Bullet", systemImage: "plus.circle")
+                                        }
+                                        .buttonStyle(.borderless)
+                                        .controlSize(.small)
+                                        .font(.caption)
+                                    }
                                 }
                                 .padding(.vertical, 4)
                             }
@@ -54,7 +114,7 @@ struct TemplateEditorView: View {
                                 section.items.remove(atOffsets: indexSet)
                             }
                             Button {
-                                section.items.append(ItemModel(headline: "New Item"))
+                                section.items.append(ItemModel(headline: "New Item", bullets: []))
                             } label: {
                                 Label("Add Item", systemImage: "plus")
                             }

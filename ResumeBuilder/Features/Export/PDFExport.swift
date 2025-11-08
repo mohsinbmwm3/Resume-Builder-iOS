@@ -18,6 +18,21 @@ enum PDFPageFormat {
 enum PDFExport {
     // Margins (top/left/bottom/right)
     static let contentInsets = UIEdgeInsets(top: 48, left: 48, bottom: 48, right: 48)
+    
+    private struct LinkToken {
+        let label: String
+        let url: URL
+    }
+    
+    private static func tokens(from items: [LinkItem]) -> [LinkToken] {
+        items.compactMap { item in
+            guard let url = URL(string: item.url.trimmingCharacters(in: .whitespacesAndNewlines)),
+                  !item.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  url.scheme != nil
+            else { return nil }
+            return LinkToken(label: item.label, url: url)
+        }
+    }
 
     /// Public entry
     static func makePDF(resume: Resume, pageFormat: PDFPageFormat = .usLetter) throws -> Data {
@@ -45,6 +60,7 @@ enum PDFExport {
             )
 
             var y = contentRect.minY
+            var pageIndex = 1
             let lineSpacing: CGFloat = 10
 
             // Helper: accurate text measurement using CoreText
@@ -61,13 +77,80 @@ enum PDFExport {
                 return ceil(size.height)
             }
 
+            func drawFooter(page: Int) {
+                let footerText = "\(resume.person.fullName) · Page \(page)"
+                let footer = NSAttributedString(
+                    string: footerText,
+                    attributes: [
+                        .font: UIFont.systemFont(ofSize: 9),
+                        .foregroundColor: UIColor.secondaryLabel
+                    ]
+                )
+                let size = footer.size()
+                // Footer position: 16pt from bottom edge
+                // Using UIKit drawing which expects top-left origin
+                let footerY = pageSize.height - contentInsets.bottom - 16 - size.height
+                let rect = CGRect(
+                    x: contentRect.minX,
+                    y: footerY,
+                    width: size.width,
+                    height: size.height
+                )
+                footer.draw(in: rect)
+            }
+            
             func newPageIfNeeded(for height: CGFloat) {
                 if y + height > contentRect.maxY {
+                    // Draw footer on current page before starting new one
+                    if pageIndex > 1 {
+                        drawFooter(page: pageIndex)
+                    }
                     ctx.beginPage()               // start a new page
+                    pageIndex += 1
                     y = contentRect.minY          // reset cursor
                 }
             }
 
+            func drawLinksRow(_ items: [LinkItem]) {
+                let ts = tokens(from: items)
+                guard !ts.isEmpty else { return }
+                
+                let labelsJoined = ts.map(\.label).joined(separator: "  •  ")
+                let attr = Attr.links(text: labelsJoined)
+                let rowHeight = suggestedHeight(for: attr, width: contentRect.width)
+                newPageIfNeeded(for: rowHeight)
+                
+                var x = contentRect.minX
+                let baseY = y
+                
+                for (i, t) in ts.enumerated() {
+                    let titleAttr = Attr.links(text: t.label)
+                    let size = titleAttr.size()
+                    let rect = CGRect(x: x, y: baseY, width: size.width, height: size.height)
+                    
+                    titleAttr.draw(in: rect)
+                    // Make clickable - ctx.setURL needs Core Graphics coordinates (bottom-left origin)
+                    let urlRect = CGRect(
+                        x: x,
+                        y: pageSize.height - baseY - size.height,
+                        width: size.width,
+                        height: size.height
+                    )
+                    ctx.setURL(t.url, for: urlRect) // clickable region over the label
+                    
+                    x = rect.maxX
+                    if i < ts.count - 1 {
+                        let sep = Attr.links(text: "  •  ")
+                        let sepSize = sep.size()
+                        let sepRect = CGRect(x: x, y: baseY, width: sepSize.width, height: sepSize.height)
+                        sep.draw(in: sepRect)
+                        x = sepRect.maxX
+                    }
+                }
+                
+                y += rowHeight + lineSpacing
+            }
+            
             func draw(_ attr: NSAttributedString) {
                 let h = suggestedHeight(for: attr, width: contentRect.width)
                 newPageIfNeeded(for: h)
@@ -79,17 +162,75 @@ enum PDFExport {
             // Header
             draw(Attr.header(text: resume.person.fullName))
             draw(Attr.subheader(text: resume.person.headline))
-            draw(Attr.caption(text: "\(resume.person.email) • \(resume.person.phone) • \(resume.person.location)"))
+            
+            // Build contact row safely (no trailing commas or double spaces)
+            let contactBits = [resume.person.email, resume.person.phone, resume.person.location]
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            draw(Attr.caption(text: contactBits.joined(separator: " • ")))
+            
+            // Make email clickable
+            let email = resume.person.email.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !contactBits.isEmpty, !email.isEmpty {
+                if let mail = email.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+                   let url = URL(string: "mailto:\(mail)") {
+                    let title = Attr.caption(text: contactBits.joined(separator: " • "))
+                    let h = suggestedHeight(for: title, width: contentRect.width)
+                    // Draw rect uses top-left, but setURL needs bottom-left origin
+                    let drawY = y - (h + lineSpacing)
+                    let urlRect = CGRect(
+                        x: contentRect.minX,
+                        y: pageSize.height - drawY - h,
+                        width: contentRect.width,
+                        height: h
+                    )
+                    ctx.setURL(url, for: urlRect)
+                }
+            }
+            
+            // Links row with clickable URLs
+            drawLinksRow(resume.person.links)
 
+            // Draw footer on last page if multi-page
+            func finalizePDF() {
+                if pageIndex > 1 {
+                    drawFooter(page: pageIndex)
+                }
+            }
+            
             // Sections & items
             for section in resume.sections where section.isVisible {
                 draw(Attr.sectionTitle(text: section.title))
                 for item in section.items {
-                    draw(Attr.itemTitle(text: item.headline))
-                    if let sub = item.subheadline, !sub.isEmpty { draw(Attr.body(text: sub)) }
-                    for b in item.bullets { draw(Attr.bullet(text: b)) }
+                    // For Summary section, if headline is empty, just draw bullets
+                    if section.kind == .summary && item.headline.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        // Summary section: just draw bullets directly
+                        for b in item.bullets { draw(Attr.body(text: b)) }
+                    } else {
+                        // Format dates
+                        let dates: String? = {
+                            switch (item.startDate, item.endDate) {
+                            case let (s?, e?): return DateFormatter.resumeRange(s, e)
+                            case let (s?, nil): return DateFormatter.resumeRange(s, Date())
+                            default: return nil
+                            }
+                        }()
+                        
+                        // Use roleLine for better formatting
+                        draw(Attr.roleLine(
+                            company: item.headline,
+                            role: item.subheadline,
+                            dates: dates,
+                            location: item.meta["location"]
+                        ))
+                        
+                        for b in item.bullets { draw(Attr.bullet(text: b)) }
+                    }
                 }
             }
+            
+            // Draw footer on last page
+            finalizePDF()
         }
     }
 

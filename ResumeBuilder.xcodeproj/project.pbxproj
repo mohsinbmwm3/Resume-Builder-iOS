@@ -14,6 +14,7 @@
 		6A489D8C71FAD185979544DF /* Attr.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52326A57579BC4B7FD8DCBE1 /* Attr.swift */; };
 		942523904A30B76573CA19E9 /* ModeSwitcherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 997DA53B69F73C93556A0AE0 /* ModeSwitcherView.swift */; };
 		959BF2D9B1E911129C12E5F2 /* PDFExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5B4309BB7BDB392AC6F0995 /* PDFExport.swift */; };
+		9A408A192EBFDC120056E99A /* DataFormatter+ResumeRange.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A408A182EBFDC070056E99A /* DataFormatter+ResumeRange.swift */; };
 		B8984404D32215386C908F90 /* FreeformCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3C6915CA07F0E1C674D64AC /* FreeformCanvasView.swift */; };
 		D1D71486A3BAC6EF8BB1401F /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C9D12D34994487643EE5E43 /* ShareSheet.swift */; };
 		F63B5B5CB7B01B48A6FA8902 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CFA13922E8DAF638590FC76 /* Models.swift */; };
@@ -29,6 +30,7 @@
 		7AD37916875B85E8D6D0C1AE /* TemplatePreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplatePreview.swift; sourceTree = "<group>"; };
 		7C6725F81CC48B07DCCE8B0E /* Bindings+Default.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Bindings+Default.swift"; sourceTree = "<group>"; };
 		997DA53B69F73C93556A0AE0 /* ModeSwitcherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModeSwitcherView.swift; sourceTree = "<group>"; };
+		9A408A182EBFDC070056E99A /* DataFormatter+ResumeRange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DataFormatter+ResumeRange.swift"; sourceTree = "<group>"; };
 		BA05FA4A762136415D86238F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C3C6915CA07F0E1C674D64AC /* FreeformCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FreeformCanvasView.swift; sourceTree = "<group>"; };
 		CDF1415BBB79ED1169F08765 /* ResumeBuilder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ResumeBuilder.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -94,6 +96,7 @@
 		8AC5A90E8F72D5D8A1144EA7 /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
+				9A408A182EBFDC070056E99A /* DataFormatter+ResumeRange.swift */,
 				7C6725F81CC48B07DCCE8B0E /* Bindings+Default.swift */,
 			);
 			path = Extensions;
@@ -205,6 +208,7 @@
 				48E002AD582222AE670B9F7C /* ResumeBuilderApp.swift in Sources */,
 				18F456D35DFFDB8CC1E98B8F /* RootView.swift in Sources */,
 				D1D71486A3BAC6EF8BB1401F /* ShareSheet.swift in Sources */,
+				9A408A192EBFDC120056E99A /* DataFormatter+ResumeRange.swift in Sources */,
 				455D0C105849D4520AB3FFF3 /* TemplateEditorView.swift in Sources */,
 				FF62E35BE305C278B977E424 /* TemplatePreview.swift in Sources */,
 			);

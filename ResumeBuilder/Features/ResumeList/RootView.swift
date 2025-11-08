@@ -8,28 +8,56 @@ struct RootView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            List {
-                Section("Resumes") {
-                    ForEach(resumes) { r in
-                        NavigationLink(value: r) {
-                            VStack(alignment: .leading) {
-                                Text(r.title).font(.headline)
-                                Text(r.person.fullName).foregroundStyle(.secondary)
-                            }
-                        }
+            resumeList
+                .navigationTitle("Resume Builder")
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { addSample() } label: { Label("Add", systemImage: "plus") }
                     }
-                    .onDelete(perform: delete)
+                }
+                .navigationDestination(for: Resume.self) { resume in
+                    ModeSwitcherView(resume: resume)
+                }
+                .onAppear {
+                    print("📋 RootView appeared. Resumes count: \(resumes.count)")
+                    for (index, r) in resumes.enumerated() {
+                        print("   [\(index)] \(r.title) - \(r.person.fullName)")
+                    }
+                }
+        }
+    }
+    
+    private var resumeList: some View {
+        List {
+            Section("Resumes") {
+                if resumes.isEmpty {
+                    emptyStateView
+                } else {
+                    resumeRows
                 }
             }
-            .navigationTitle("Resume Builder")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { addSample() } label: { Label("Add", systemImage: "plus") }
-                }
+        }
+    }
+    
+    private var emptyStateView: some View {
+        Text("No resumes yet. Tap + to create one.")
+            .foregroundStyle(.secondary)
+            .padding(.vertical, 8)
+    }
+    
+    private var resumeRows: some View {
+        ForEach(resumes) { r in
+            NavigationLink(value: r) {
+                resumeRowView(resume: r)
             }
-            .navigationDestination(for: Resume.self) { resume in
-                ModeSwitcherView(resume: resume)
-            }
+        }
+        .onDelete(perform: delete)
+    }
+    
+    private func resumeRowView(resume: Resume) -> some View {
+        VStack(alignment: .leading) {
+            Text(resume.title).font(.headline)
+            Text(resume.person.fullName).foregroundStyle(.secondary)
         }
     }
 
@@ -39,6 +67,8 @@ struct RootView: View {
     }
 
     private func addSample() {
+        print("➕ Adding sample resume...")
+        
         // Create detailed experience items
         let autodeskExp = ItemModel(
             headline: "SENIOR SOFTWARE ENGINEER, AUTODESK",
@@ -55,9 +85,9 @@ struct RootView: View {
             meta: ["location": "Pune, India"]
         )
         
-        // Create Summary section
+        // Create Summary section (no "Summary" headline - just bullets)
         let summaryItem = ItemModel(
-            headline: "Summary",
+            headline: "",
             subheadline: nil,
             startDate: nil,
             endDate: nil,
@@ -129,10 +159,14 @@ struct RootView: View {
             email: "mohsinkhan845@gmail.com",
             phone: "+919009301310",
             location: "Magarpatta City, Pune MH, India 411028",
-            links: ["LinkedIn", "GitHub", "Medium"]
+            links: [
+                LinkItem(label: "LinkedIn", url: "https://linkedin.com/in/mohsinkhan845"),
+                LinkItem(label: "GitHub", url: "https://github.com/mohsinbmwm3"),
+                LinkItem(label: "Medium", url: "https://medium.com/@mohsinkhan")
+            ]
         )
         
-        let resume = Resume(
+        var resume = Resume(
             title: "Mohsin Khan - Senior Software Engineer",
             person: person,
             sections: [summarySection, skillsSection, experienceSection],
@@ -140,7 +174,51 @@ struct RootView: View {
             layoutMode: .structured
         )
         
+        // Reorder sections: Summary first, then Skills
+        hoistSummaryAndSkills(&resume)
+        
+        print("📝 Inserting resume: \(resume.title)")
+        print("   - Sections: \(resume.sections.count)")
+        print("   - Person: \(resume.person.fullName)")
+        
+        // Insert all nested models first (SwiftData requirement)
+        for section in resume.sections {
+            context.insert(section)
+            for item in section.items {
+                context.insert(item)
+            }
+        }
+        context.insert(resume.theme)
+        
+        // Then insert the resume
         context.insert(resume)
-        try? context.save()
+        
+        do {
+            try context.save()
+            print("✅ Resume saved successfully. Total resumes: \(resumes.count)")
+            
+            // Navigate to the newly created resume
+            // Since we're already on the main thread in a button action, we can directly modify path
+            path.append(resume)
+        } catch {
+            print("❌ Error saving resume: \(error)")
+            print("Error details: \(error.localizedDescription)")
+        }
+    }
+    
+    private func hoistSummaryAndSkills(_ r: inout Resume) {
+        let order: [SectionKind] = [.summary, .skills]
+        r.sections.sort { a, b in
+            let ia = order.firstIndex(of: a.kind) ?? Int.max
+            let ib = order.firstIndex(of: b.kind) ?? Int.max
+            if ia != ib { return ia < ib }
+            return a.title < b.title
+        }
+        // Strip accidental duplicate "Summary" heading lines inside the Summary item
+        if let i = r.sections.firstIndex(where: { $0.kind == .summary }),
+           !r.sections[i].items.isEmpty,
+           r.sections[i].items[0].headline.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "summary" {
+            r.sections[i].items[0].headline = ""  // keep only the paragraph bullets/body
+        }
     }
 }
