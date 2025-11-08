@@ -28,14 +28,25 @@ struct TemplatePreview: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(section.title).font(.headline)
                         
-                        // Two-column layout for Skills section
+                        // Skills section - show headline and bullets
                         if section.kind == .skills {
-                            let cols = [GridItem(.flexible(), spacing: 12), GridItem(.flexible())]
-                            LazyVGrid(columns: cols, alignment: .leading, spacing: 6) {
-                                ForEach(section.items) { item in
-                                    Text("• \(item.headline)")
-                                        .font(.callout)
+                            ForEach(section.items) { item in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    if !item.headline.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                        Text(item.headline)
+                                            .font(.callout)
+                                            .bold()
+                                    }
+                                    ForEach(item.bullets, id: \.self) { bullet in
+                                        HStack(alignment: .top, spacing: 6) {
+                                            Text("•")
+                                                .font(.callout)
+                                            Text(bullet)
+                                                .font(.callout)
+                                        }
+                                    }
                                 }
+                                .padding(.vertical, 2)
                             }
                         } else {
                             // Regular items rendering
