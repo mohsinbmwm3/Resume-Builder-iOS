@@ -1,9 +1,12 @@
 import SwiftUI
+import SwiftData
 
 struct TemplateEditorView: View {
     @Binding var resume: Resume
     @State private var selectedSectionID: UUID?
+    @State private var showSectionPicker = false
     @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.modelContext) private var context
 
     var body: some View {
         Group {
@@ -26,6 +29,16 @@ struct TemplateEditorView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // Ensure editor also paints a full-screen background
         .background(Color(.systemBackground).ignoresSafeArea())
+        .confirmationDialog("Select Section Type", isPresented: $showSectionPicker, titleVisibility: .visible) {
+            Button("Summary") { addSection(kind: .summary) }
+            Button("Experience") { addSection(kind: .experience) }
+            Button("Education") { addSection(kind: .education) }
+            Button("Skills") { addSection(kind: .skills) }
+            Button("Projects") { addSection(kind: .projects) }
+            Button("Achievements") { addSection(kind: .achievements) }
+            Button("Custom") { addSection(kind: .custom) }
+            Button("Cancel", role: .cancel) { }
+        }
     }
 
     private var formList: some View {
@@ -72,68 +85,261 @@ struct TemplateEditorView: View {
             Section("Sections") {
                 ForEach($resume.sections) { $section in
                     VStack(alignment: .leading, spacing: 8) {
-                        Toggle(isOn: $section.isVisible) { Text(section.title) }
+                        HStack {
+                            TextField("Section Title (e.g., Skills)", text: $section.title)
+                                .font(.headline)
+                            Toggle("", isOn: $section.isVisible)
+                        }
+                        
                         if section.isVisible {
-                            ForEach($section.items) { $item in
-                                VStack(alignment: .leading, spacing: 6) {
-                                    TextField("Headline", text: $item.headline)
-                                    TextField("Subheadline", text: Binding($item.subheadline, default: ""))
-                                    
-                                    // Show bullets for editing
-                                    if !item.bullets.isEmpty || section.kind == .skills {
-                                        Text("Bullets:")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                        ForEach(Array(item.bullets.enumerated()), id: \.offset) { index, bullet in
-                                            HStack(alignment: .top, spacing: 6) {
-                                                Text("•")
-                                                    .foregroundStyle(.secondary)
-                                                TextField("Bullet point", text: Binding(
-                                                    get: { item.bullets[index] },
-                                                    set: { item.bullets[index] = $0 }
-                                                ), axis: .vertical)
-                                                .lineLimit(3...6)
-                                            }
-                                        }
-                                        .onDelete { indexSet in
-                                            item.bullets.remove(atOffsets: indexSet)
-                                        }
-                                        Button {
-                                            item.bullets.append("New bullet point")
-                                        } label: {
-                                            Label("Add Bullet", systemImage: "plus.circle")
-                                        }
-                                        .buttonStyle(.borderless)
-                                        .controlSize(.small)
-                                        .font(.caption)
-                                    }
-                                }
-                                .padding(.vertical, 4)
-                            }
-                            .onDelete { indexSet in
-                                section.items.remove(atOffsets: indexSet)
-                            }
-                            Button {
-                                section.items.append(ItemModel(headline: "New Item", bullets: []))
-                            } label: {
-                                Label("Add Item", systemImage: "plus")
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
+                            ItemsListView(section: $section, context: context)
                         }
                     }
                     .padding(.vertical, 4)
+                    .onChange(of: section.items.count) { _, _ in
+                        // Save when items are added/removed
+                        try? context.save()
+                    }
                 }
                 .onMove { from, to in
                     resume.sections.move(fromOffsets: from, toOffset: to)
+                    try? context.save()
                 }
-                Button { addSection() } label: { Label("Add Section", systemImage: "text.badge.plus") }
+                Button { showSectionPicker = true } label: { Label("Add New Section", systemImage: "text.badge.plus") }
                     .buttonStyle(.bordered)
             }
         }
     }
 
-    private func addSection() {
-        resume.sections.append(SectionModel(kind: .custom, title: "Custom", items: [ItemModel(headline: "Detail")]))
+    private func addSection(kind: SectionKind) {
+        let title: String
+        switch kind {
+        case .summary: title = "Summary"
+        case .experience: title = "Experience"
+        case .education: title = "Education"
+        case .skills: title = "Skills"
+        case .projects: title = "Projects"
+        case .achievements: title = "Achievements"
+        case .custom: title = "Custom"
+        }
+        
+        // Create a fresh new section with empty item (with explicit UUID)
+        let newItem = ItemModel(
+            id: UUID(),
+            headline: "",
+            subheadline: nil,
+            startDate: nil,
+            endDate: nil,
+            bullets: [],
+            meta: [:]
+        )
+        // Insert item into context first (SwiftData requirement)
+        context.insert(newItem)
+        
+        let newSection = SectionModel(kind: kind, title: title, items: [newItem], isVisible: true)
+        // Insert section into context
+        context.insert(newSection)
+        // Append to resume sections
+        resume.sections.append(newSection)
+        // Save immediately
+        try? context.save()
+    }
+}
+
+// Wrapper to maintain stable item identity and order
+private struct ItemWrapper: Identifiable {
+    let id: UUID
+    let index: Int
+    let item: ItemModel
+}
+
+// Separate view to maintain stable item order and prevent copying
+private struct ItemsListView: View {
+    @Binding var section: SectionModel
+    let context: ModelContext
+    @State private var itemOrder: [UUID] = []
+    @State private var hasInitialized = false
+    
+    var body: some View {
+        Group {
+            // Create wrappers in the stored order
+            let wrappers = itemOrder.compactMap { itemID -> ItemWrapper? in
+                guard let index = section.items.firstIndex(where: { $0.id == itemID }),
+                      index < section.items.count else { return nil }
+                return ItemWrapper(id: itemID, index: index, item: section.items[index])
+            }
+            
+            ForEach(wrappers) { wrapper in
+                ItemEditorView(
+                    item: Binding(
+                        get: { 
+                            // Get item by ID from the actual array
+                            guard let index = section.items.firstIndex(where: { $0.id == wrapper.id }),
+                                  index < section.items.count else {
+                                return ItemModel(headline: "", bullets: [])
+                            }
+                            return section.items[index]
+                        },
+                        set: { newValue in
+                            // Find the item by ID and update it
+                            guard let index = section.items.firstIndex(where: { $0.id == wrapper.id }),
+                                  index < section.items.count else { return }
+                            
+                            // Create a completely new array to ensure SwiftData detects the change
+                            var updatedItems = section.items
+                            updatedItems[index] = newValue
+                            section.items = updatedItems
+                            
+                            // Save immediately when item is modified
+                            try? context.save()
+                        }
+                    ),
+                    sectionKind: section.kind
+                )
+                .id("section-\(section.id.uuidString)-item-\(wrapper.id.uuidString)")
+            }
+            .onDelete { indexSet in
+                // Delete from both order array and actual items array
+                let idsToRemove = indexSet.map { wrappers[$0].id }
+                itemOrder.removeAll { idsToRemove.contains($0) }
+                section.items.removeAll { idsToRemove.contains($0.id) }
+                // Save when items are deleted
+                try? context.save()
+            }
+            
+            Button {
+                // Create a completely fresh new item with empty values
+                let newItem = ItemModel(
+                    id: UUID(),
+                    headline: "",
+                    subheadline: nil,
+                    startDate: nil,
+                    endDate: nil,
+                    bullets: [],
+                    meta: [:]
+                )
+                // Insert the item into context first (SwiftData requirement)
+                context.insert(newItem)
+                // Append to the end of both arrays (maintains order)
+                section.items.append(newItem)
+                itemOrder.append(newItem.id)
+                // Save immediately to persist the change
+                try? context.save()
+            } label: {
+                Label("Add Item to Section", systemImage: "plus")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        }
+        .onAppear {
+            if !hasInitialized {
+                initializeOrder()
+                hasInitialized = true
+            }
+        }
+        .onChange(of: section.items.count) { oldCount, newCount in
+            // Only sync if items were added (not deleted, as deletion is handled explicitly)
+            if newCount > oldCount {
+                // Find new items and add them to the end of order
+                let currentIDs = Set(itemOrder)
+                let newIDs = section.items.map { $0.id }.filter { !currentIDs.contains($0) }
+                itemOrder.append(contentsOf: newIDs)
+            }
+        }
+    }
+    
+    private func initializeOrder() {
+        // Initialize order from current items array order
+        itemOrder = section.items.map { $0.id }
+    }
+}
+
+// Separate view for each item to ensure proper binding isolation
+private struct ItemEditorView: View {
+    @Binding var item: ItemModel
+    let sectionKind: SectionKind
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            // Use explicit bindings to prevent cross-contamination
+            TextField("Item Title (e.g., Skill Name)", text: Binding(
+                get: { item.headline },
+                set: { newValue in
+                    var updatedItem = item
+                    updatedItem.headline = newValue
+                    item = updatedItem
+                }
+            ))
+            .font(.subheadline)
+            
+            TextField("Subtitle or Description (optional)", text: Binding(
+                get: { item.subheadline ?? "" },
+                set: { newValue in
+                    var updatedItem = item
+                    updatedItem.subheadline = newValue.isEmpty ? nil : newValue
+                    item = updatedItem
+                }
+            ))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            
+            // Show bullets for editing (always show for skills, or if bullets exist)
+            if sectionKind == .skills || !item.bullets.isEmpty {
+                Text("Details:")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 2)
+                ForEach(item.bullets.indices, id: \.self) { bulletIndex in
+                    HStack(alignment: .top, spacing: 4) {
+                        Text("•")
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 2)
+                        TextField("Detail point", text: Binding(
+                            get: { 
+                                guard bulletIndex < item.bullets.count else { return "" }
+                                return item.bullets[bulletIndex]
+                            },
+                            set: { newValue in
+                                var updatedItem = item
+                                guard bulletIndex < updatedItem.bullets.count else { return }
+                                updatedItem.bullets[bulletIndex] = newValue
+                                item = updatedItem
+                            }
+                        ), axis: .vertical)
+                        .lineLimit(3...6)
+                    }
+                    .padding(.vertical, 1)
+                }
+                .onDelete { indexSet in
+                    var updatedItem = item
+                    updatedItem.bullets.remove(atOffsets: indexSet)
+                    item = updatedItem
+                }
+                Button {
+                    var updatedItem = item
+                    updatedItem.bullets.append("")
+                    item = updatedItem
+                } label: {
+                    Label("Add Detail", systemImage: "plus.circle")
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+                .font(.caption)
+            } else if sectionKind != .summary {
+                // For non-skills sections, show option to add bullets
+                Button {
+                    var updatedItem = item
+                    updatedItem.bullets.append("")
+                    item = updatedItem
+                } label: {
+                    Label("Add Detail Point", systemImage: "plus.circle")
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+                .font(.caption)
+            }
+        }
+        .padding(.vertical, 2)
+        .padding(.leading, 8)
     }
 }

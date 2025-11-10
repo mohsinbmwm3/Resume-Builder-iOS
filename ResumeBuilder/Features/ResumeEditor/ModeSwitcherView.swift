@@ -3,24 +3,14 @@ import SwiftUI
 struct ModeSwitcherView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.horizontalSizeClass) private var hSize
-    var resume: Resume
+    @Bindable var resume: Resume
     @State private var showShare = false
     @State private var pdfURL: URL?
     @State private var compactTab: Int = 0 // 0 = Edit, 1 = Preview
-    @State private var resumeState: Resume
-    
-    init(resume: Resume) {
-        self.resume = resume
-        self._resumeState = State(initialValue: resume)
-    }
-    
-    private var resumeBinding: Binding<Resume> {
-        $resumeState
-    }
 
     var body: some View {
-        mainContent
-            .navigationTitle(resumeState.title)
+        contentView
+            .navigationTitle(resume.person.fullName)
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button { exportPDF() } label: { Label("Export PDF", systemImage: "square.and.arrow.up") }
@@ -30,91 +20,128 @@ struct ModeSwitcherView: View {
             .sheet(isPresented: $showShare) {
                 if let pdfURL { ShareSheet(items: [pdfURL]) }
             }
-            .onChange(of: resumeState) { _, newValue in
-                context.insert(newValue)
+            .onChange(of: resume.title) { _, _ in
+                try? context.save()
+            }
+            .onChange(of: resume.person) { _, _ in
+                try? context.save()
+            }
+            .onChange(of: resume.sections) { _, _ in
+                try? context.save()
+            }
+            .onDisappear {
+                // Final save when leaving the view
                 try? context.save()
             }
     }
     
     @ViewBuilder
-    private var mainContent: some View {
+    private var contentView: some View {
         if hSize == .compact {
-            compactLayout
+            compactBody
         } else {
-            regularLayout
+            regularBody
         }
-    }
-    
-    private var compactLayout: some View {
-        VStack(spacing: 0) {
-            compactPicker
-            Divider()
-            compactContentView
-        }
-    }
-    
-    private var compactPicker: some View {
-        Picker("View", selection: $compactTab) {
-            Text("Edit").tag(0)
-            Text("Preview").tag(1)
-        }
-        .pickerStyle(.segmented)
-        .padding(.horizontal)
-        .padding(.top, 8)
-        .padding(.bottom, 8)
     }
     
     @ViewBuilder
-    private var compactContentView: some View {
-        Group {
-            switch resumeState.layoutMode {
-            case .structured:
-                if compactTab == 0 {
-                    TemplateEditorView(resume: resumeBinding)
-                } else {
-                    TemplatePreview(resume: resumeState)
+    private var compactBody: some View {
+        VStack(spacing: 0) {
+            Picker("View", selection: $compactTab) {
+                Text("Edit").tag(0)
+                Text("Preview").tag(1)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+            .padding(.top, 8)
+            .padding(.bottom, 8)
+            
+            Divider()
+            
+            Group {
+                switch resume.layoutMode {
+                case .structured:
+                    if compactTab == 0 {
+                        editorView
+                    } else {
+                        TemplatePreview(resume: resume)
+                    }
+                case .freeform:
+                    canvasView
                 }
-            case .freeform:
-                FreeformCanvasView(resume: resumeBinding)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    private var regularLayout: some View {
-        VStack(spacing: 0) {
-            regularPicker
-            Divider()
-            regularContentView
-        }
-    }
-    
-    private var regularPicker: some View {
-        Picker("Layout Mode", selection: $resumeState.layoutMode) {
-            Text("Structured").tag(LayoutMode.structured)
-            Text("Free-Form").tag(LayoutMode.freeform)
-        }
-        .pickerStyle(.segmented)
-        .padding()
     }
     
     @ViewBuilder
-    private var regularContentView: some View {
-        Group {
-            switch resumeState.layoutMode {
-            case .structured:
-                TemplateEditorView(resume: resumeBinding)
-            case .freeform:
-                FreeformCanvasView(resume: resumeBinding)
+    private var regularBody: some View {
+        VStack(spacing: 0) {
+            Picker("Layout Mode", selection: Binding(
+                get: { resume.layoutMode },
+                set: { newValue in
+                    resume.layoutMode = newValue
+                    try? context.save()
+                }
+            )) {
+                Text("Structured").tag(LayoutMode.structured)
+                Text("Free-Form").tag(LayoutMode.freeform)
             }
+            .pickerStyle(.segmented)
+            .padding()
+            
+            Divider()
+            
+            Group {
+                switch resume.layoutMode {
+                case .structured:
+                    editorView
+                case .freeform:
+                    canvasView
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    @ViewBuilder
+    private var editorView: some View {
+        TemplateEditorView(resume: Binding(
+            get: { resume },
+            set: { newValue in
+                // Update the resume properties
+                resume.title = newValue.title
+                resume.person = newValue.person
+                resume.sections = newValue.sections
+                resume.theme = newValue.theme
+                resume.layoutMode = newValue.layoutMode
+                resume.blocks = newValue.blocks
+                try? context.save()
+            }
+        ))
+    }
+    
+    @ViewBuilder
+    private var canvasView: some View {
+        FreeformCanvasView(resume: Binding(
+            get: { resume },
+            set: { newValue in
+                // Update the resume properties
+                resume.title = newValue.title
+                resume.person = newValue.person
+                resume.sections = newValue.sections
+                resume.theme = newValue.theme
+                resume.layoutMode = newValue.layoutMode
+                resume.blocks = newValue.blocks
+                try? context.save()
+            }
+        ))
     }
 
     private func exportPDF() {
         do {
-            let data = try PDFExport.makePDF(resume: resumeState)
-            let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("Resume-\(resumeState.id).pdf")
+            let data = try PDFExport.makePDF(resume: resume)
+            let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("Resume-\(resume.id).pdf")
             try data.write(to: tmp)
             pdfURL = tmp
             showShare = true

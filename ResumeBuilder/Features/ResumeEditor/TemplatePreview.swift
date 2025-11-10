@@ -29,8 +29,9 @@ struct TemplatePreview: View {
                         Text(section.title).font(.headline)
                         
                         // Skills section - show headline and bullets
+                        // Use enumerated to maintain array order (same as editor)
                         if section.kind == .skills {
-                            ForEach(section.items) { item in
+                            ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
                                 VStack(alignment: .leading, spacing: 4) {
                                     if !item.headline.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                                         Text(item.headline)
@@ -49,8 +50,8 @@ struct TemplatePreview: View {
                                 .padding(.vertical, 2)
                             }
                         } else {
-                            // Regular items rendering
-                            ForEach(section.items) { item in
+                            // Regular items rendering - use enumerated to maintain array order
+                            ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
                                 VStack(alignment: .leading, spacing: 2) {
                                     // For Summary section, skip empty headlines
                                     if section.kind != .summary || !item.headline.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {

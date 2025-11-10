@@ -5,6 +5,8 @@ struct RootView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Resume.title) private var resumes: [Resume]
     @State private var path: [Resume] = []
+    @State private var refreshID = UUID()
+    @State private var showCreateOptions = false
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -12,7 +14,21 @@ struct RootView: View {
                 .navigationTitle("Resume Builder")
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button { addSample() } label: { Label("Add", systemImage: "plus") }
+                        Menu {
+                            Button {
+                                addSample()
+                            } label: {
+                                Label("With Sample Data", systemImage: "doc.text.fill")
+                            }
+                            
+                            Button {
+                                addEmpty()
+                            } label: {
+                                Label("Empty Resume", systemImage: "doc")
+                            }
+                        } label: {
+                            Label("Add", systemImage: "plus")
+                        }
                     }
                 }
                 .navigationDestination(for: Resume.self) { resume in
@@ -20,10 +36,27 @@ struct RootView: View {
                 }
                 .onAppear {
                     print("📋 RootView appeared. Resumes count: \(resumes.count)")
+                    // Also try to fetch directly from context to verify
+                    let descriptor = FetchDescriptor<Resume>(sortBy: [SortDescriptor(\.title)])
+                    if let fetched = try? context.fetch(descriptor) {
+                        print("📋 Direct fetch from context: \(fetched.count) resumes")
+                        for (index, r) in fetched.enumerated() {
+                            print("   [\(index)] \(r.title) - \(r.person.fullName) (ID: \(r.id))")
+                        }
+                    }
                     for (index, r) in resumes.enumerated() {
-                        print("   [\(index)] \(r.title) - \(r.person.fullName)")
+                        print("   [\(index)] \(r.title) - \(r.person.fullName) (ID: \(r.id))")
                     }
                 }
+                .onChange(of: path) { oldValue, newValue in
+                    // When navigation path changes (user navigates back), refresh
+                    if newValue.isEmpty && !oldValue.isEmpty {
+                        // User navigated back to root - refresh the list
+                        print("🔄 User navigated back, refreshing list...")
+                        refreshID = UUID()
+                    }
+                }
+                .id(refreshID)
         }
     }
     
@@ -35,6 +68,14 @@ struct RootView: View {
                 } else {
                     resumeRows
                 }
+            }
+        }
+        .refreshable {
+            // Pull to refresh - force SwiftData to reload
+            print("🔄 Refreshing resumes...")
+            // The @Query should automatically update, but we can force a view refresh
+            await MainActor.run {
+                refreshID = UUID()
             }
         }
     }
@@ -56,8 +97,8 @@ struct RootView: View {
     
     private func resumeRowView(resume: Resume) -> some View {
         VStack(alignment: .leading) {
-            Text(resume.title).font(.headline)
-            Text(resume.person.fullName).foregroundStyle(.secondary)
+            Text(resume.person.fullName).font(.headline)
+            Text(resume.person.headline).foregroundStyle(.secondary)
         }
     }
 
@@ -181,6 +222,17 @@ struct RootView: View {
         print("   - Sections: \(resume.sections.count)")
         print("   - Person: \(resume.person.fullName)")
         
+        // Check if theme already exists (ThemeModel has unique id)
+        // Fetch all themes and find matching one, or use the default
+        let allThemes = try? context.fetch(FetchDescriptor<ThemeModel>())
+        let existingTheme = allThemes?.first(where: { $0.id == resume.theme.id })
+        
+        // Use existing theme or insert new one
+        let themeToUse = existingTheme ?? resume.theme
+        if existingTheme == nil {
+            context.insert(themeToUse)
+        }
+        
         // Insert all nested models first (SwiftData requirement)
         for section in resume.sections {
             context.insert(section)
@@ -188,21 +240,121 @@ struct RootView: View {
                 context.insert(item)
             }
         }
-        context.insert(resume.theme)
+        
+        // Update resume to use the theme
+        resume.theme = themeToUse
         
         // Then insert the resume
         context.insert(resume)
         
+        print("💾 Attempting to save resume...")
+        print("   - Resume ID: \(resume.id)")
+        print("   - Theme ID: \(resume.theme.id)")
+        print("   - Sections count: \(resume.sections.count)")
+        
         do {
             try context.save()
-            print("✅ Resume saved successfully. Total resumes: \(resumes.count)")
+            print("✅ Context.save() completed without error")
             
-            // Navigate to the newly created resume
-            // Since we're already on the main thread in a button action, we can directly modify path
-            path.append(resume)
+            // Verify the save worked by fetching directly
+            let descriptor = FetchDescriptor<Resume>(sortBy: [SortDescriptor(\.title)])
+            let fetched = try context.fetch(descriptor)
+            print("📊 Direct fetch after save: \(fetched.count) resumes")
+            for r in fetched {
+                print("   - \(r.title) (ID: \(r.id))")
+            }
+            
+            // Force query to refresh by triggering a view update
+            refreshID = UUID()
+            
+            // Small delay to ensure SwiftData has processed the save
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                print("📋 After save delay:")
+                print("   - @Query count: \(self.resumes.count)")
+                let delayedFetch = try? self.context.fetch(FetchDescriptor<Resume>())
+                print("   - Direct fetch count: \(delayedFetch?.count ?? 0)")
+                // Navigate to the newly created resume
+                self.path.append(resume)
+            }
         } catch {
             print("❌ Error saving resume: \(error)")
             print("Error details: \(error.localizedDescription)")
+            if let nsError = error as NSError? {
+                print("   Domain: \(nsError.domain)")
+                print("   Code: \(nsError.code)")
+                print("   UserInfo: \(nsError.userInfo)")
+            }
+        }
+    }
+    
+    private func addEmpty() {
+        print("➕ Creating empty resume...")
+        
+        // Create a minimal empty resume
+        let person = Person(
+            fullName: "Your Name",
+            headline: "Your Title",
+            email: "your.email@example.com",
+            phone: "+1-XXX-XXX-XXXX",
+            location: "City, Country",
+            links: []
+        )
+        
+        let resume = Resume(
+            title: "New Resume",
+            person: person,
+            sections: [],
+            theme: .default,
+            layoutMode: .structured
+        )
+        
+        print("📝 Inserting empty resume: \(resume.title)")
+        
+        // Check if theme already exists
+        let allThemes = try? context.fetch(FetchDescriptor<ThemeModel>())
+        let existingTheme = allThemes?.first(where: { $0.id == resume.theme.id })
+        
+        // Use existing theme or insert new one
+        let themeToUse = existingTheme ?? resume.theme
+        if existingTheme == nil {
+            context.insert(themeToUse)
+        }
+        
+        // Update resume to use the theme
+        resume.theme = themeToUse
+        
+        // Insert the resume
+        context.insert(resume)
+        
+        print("💾 Attempting to save empty resume...")
+        print("   - Resume ID: \(resume.id)")
+        print("   - Theme ID: \(resume.theme.id)")
+        
+        do {
+            try context.save()
+            print("✅ Empty resume saved successfully")
+            
+            // Verify the save worked
+            let descriptor = FetchDescriptor<Resume>(sortBy: [SortDescriptor(\.title)])
+            let fetched = try context.fetch(descriptor)
+            print("📊 Direct fetch after save: \(fetched.count) resumes")
+            
+            // Force query to refresh
+            refreshID = UUID()
+            
+            // Navigate to the newly created resume
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                print("📋 After save delay, @Query count: \(self.resumes.count)")
+                self.path.append(resume)
+            }
+        } catch {
+            print("❌ Error saving empty resume: \(error)")
+            print("Error details: \(error.localizedDescription)")
+            if let nsError = error as NSError? {
+                print("   Domain: \(nsError.domain)")
+                print("   Code: \(nsError.code)")
+                print("   UserInfo: \(nsError.userInfo)")
+            }
         }
     }
     
