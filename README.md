@@ -43,43 +43,6 @@ ResumeBuilder/
     └── Info.plist                       # App configuration
 ```
 
-## Setup Instructions
-
-### Option 1: Create New Xcode Project (Recommended)
-
-1. Open Xcode and create a new project:
-   - Choose **iOS** → **App**
-   - Product Name: `ResumeBuilder`
-   - Interface: **SwiftUI**
-   - Language: **Swift**
-   - ✅ Check **Use SwiftData**
-   - Minimum Deployment: **iOS 17.0**
-
-2. Delete the default `ContentView.swift` and `App.swift` files
-
-3. Add all files from the `ResumeBuilder/` directory to your Xcode project:
-   - Right-click on your project in the navigator
-   - Select **Add Files to "ResumeBuilder"...**
-   - Navigate to the `ResumeBuilder/` folder
-   - Select all folders and files
-   - Make sure **"Copy items if needed"** is checked
-   - Ensure **"Create groups"** is selected
-   - Click **Add**
-
-4. Build and run the project (⌘R)
-
-### Option 2: Use XcodeGen (Advanced)
-
-If you have [XcodeGen](https://github.com/yonaskolb/XcodeGen) installed:
-
-```bash
-# Install XcodeGen (if not already installed)
-brew install xcodegen
-
-# Generate Xcode project
-xcodegen generate
-```
-
 ## Architecture
 
 The project follows **Clean Architecture** principles:
