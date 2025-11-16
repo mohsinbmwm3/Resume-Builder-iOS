@@ -22,7 +22,31 @@ enum Attr {
             .foregroundColor: UIColor.label
         ])
     }
+    
+    static func itemSubtitle(text: String) -> NSAttributedString {
+        let p = NSMutableParagraphStyle()
+        p.lineBreakMode = .byWordWrapping
+        p.paragraphSpacing = 2
+        return NSAttributedString(string: text, attributes: [
+            .font: UIFont.systemFont(ofSize: 10),
+            .foregroundColor: UIColor.secondaryLabel,
+            .paragraphStyle: p
+        ])
+    }
 
+    static func summaryParagraph(text: String) -> NSAttributedString {
+        let p = NSMutableParagraphStyle()
+        p.lineBreakMode = .byWordWrapping
+        p.minimumLineHeight = 14
+        p.maximumLineHeight = 14
+        p.paragraphSpacing = 6           // a little space between paragraphs
+        return NSAttributedString(string: text, attributes: [
+            .font: UIFont.systemFont(ofSize: 11),      // regular, NOT bold
+            .foregroundColor: UIColor.label,
+            .paragraphStyle: p
+        ])
+    }
+    
     static func caption(text: String) -> NSAttributedString {
         let p = NSMutableParagraphStyle(); p.alignment = .left
         return NSAttributedString(string: text, attributes: [

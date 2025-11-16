@@ -201,33 +201,39 @@ enum PDFExport {
             // Sections & items
             for section in resume.sections where section.isVisible {
                 draw(Attr.sectionTitle(text: section.title))
-                for item in section.items {
-                    // For Summary section, if headline is empty, just draw bullets
-                    if section.kind == .summary && item.headline.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        // Summary section: just draw bullets directly
-                        for b in item.bullets { draw(Attr.body(text: b)) }
-                    } else {
-                        // Format dates
+
+                if section.kind == .summary {
+                    // SUMMARY = paragraphs only
+                    for item in section.items {
+                        let paras: [String] = item.bullets.isEmpty
+                            ? [item.headline, item.subheadline ?? ""].filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+                            : item.bullets
+
+                        for para in paras {
+                            draw(Attr.summaryParagraph(text: para))
+                        }
+                    }
+                } else {
+                    // EXISTING rendering for other sections
+                    for item in section.items {
                         let dates: String? = {
                             switch (item.startDate, item.endDate) {
-                            case let (s?, e?): return DateFormatter.resumeRange(s, e)
-                            case let (s?, nil): return DateFormatter.resumeRange(s, Date())
-                            default: return nil
+                            case let (s?, e?): DateFormatter.resumeRange(s, e)
+                            case let (s?, nil): DateFormatter.resumeRange(s, Date())
+                            default: nil
                             }
                         }()
-                        
-                        // Use roleLine for better formatting
-                        draw(Attr.roleLine(
-                            company: item.headline,
-                            role: item.subheadline,
-                            dates: dates,
-                            location: item.meta["location"]
-                        ))
-                        
+
+                        draw(Attr.roleLine(company: item.headline,
+                                           role: item.subheadline,
+                                           dates: dates,
+                                           location: item.meta["location"]))
+
                         for b in item.bullets { draw(Attr.bullet(text: b)) }
                     }
                 }
             }
+
             
             // Draw footer on last page
             finalizePDF()

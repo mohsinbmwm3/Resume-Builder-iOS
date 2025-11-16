@@ -27,37 +27,39 @@ struct TemplatePreview: View {
                 ForEach(resume.sections.filter { $0.isVisible }) { section in
                     VStack(alignment: .leading, spacing: 6) {
                         Text(section.title).font(.headline)
-                        
-                        // Skills section - show headline and bullets
-                        // Use enumerated to maintain array order (same as editor)
-                        if section.kind == .skills {
-                            ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
-                                VStack(alignment: .leading, spacing: 4) {
-                                    if !item.headline.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                        Text(item.headline)
-                                            .font(.callout)
-                                            .bold()
-                                    }
-                                    ForEach(item.bullets, id: \.self) { bullet in
-                                        HStack(alignment: .top, spacing: 6) {
-                                            Text("•")
-                                                .font(.callout)
-                                            Text(bullet)
-                                                .font(.callout)
-                                        }
-                                    }
+
+                        if section.kind == .summary {
+                            // SUMMARY = paragraphs only (no bold item titles)
+                            ForEach(section.items) { item in
+                                // Prefer bullets as paragraphs; else use headline/subheadline if present
+                                let paras: [String] = item.bullets.isEmpty
+                                    ? [item.headline, item.subheadline ?? ""].filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+                                    : item.bullets
+
+                                ForEach(paras, id: \.self) { para in
+                                    Text(para)
+                                        .font(.body)                 // regular
+                                        .lineSpacing(3)
+                                        .padding(.bottom, 2)
                                 }
-                                .padding(.vertical, 2)
                             }
                         } else {
-                            // Regular items rendering - use enumerated to maintain array order
-                            ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
+                            // EXISTING rendering for all other sections
+                            ForEach(section.items) { item in
                                 VStack(alignment: .leading, spacing: 2) {
-                                    // For Summary section, skip empty headlines
-                                    if section.kind != .summary || !item.headline.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                        Text(item.headline).bold()
+                                    // Title – same as before
+                                    Text(item.headline)
+                                        .font(.body)
+                                        .bold()
+
+                                    // Subtitle – smaller + grey, like Edit screen
+                                    if let sub = item.subheadline, !sub.isEmpty {
+                                        Text(sub)
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
                                     }
-                                    if let sub = item.subheadline, !sub.isEmpty { Text(sub) }
+
+                                    // Details / bullets
                                     ForEach(item.bullets, id: \.self) { b in
                                         HStack(alignment: .top, spacing: 6) {
                                             Text("•")
@@ -66,6 +68,7 @@ struct TemplatePreview: View {
                                     }
                                 }
                                 .padding(.vertical, 4)
+
                             }
                         }
                     }

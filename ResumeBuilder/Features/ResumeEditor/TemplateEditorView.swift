@@ -92,7 +92,13 @@ struct TemplateEditorView: View {
                         }
                         
                         if section.isVisible {
-                            ItemsListView(section: $section, context: context)
+                            if section.kind == .summary {
+                                // SPECIAL CASE: Summary = single multiline paragraph
+                                SummarySectionEditor(section: $section, context: context)
+                            } else {
+                                // All other sections keep the existing item-based UI
+                                ItemsListView(section: $section, context: context)
+                            }
                         }
                     }
                     .padding(.vertical, 4)
@@ -341,5 +347,61 @@ private struct ItemEditorView: View {
         }
         .padding(.vertical, 2)
         .padding(.leading, 8)
+    }
+}
+
+// MARK: - Summary editor (multiline paragraph)
+private struct SummarySectionEditor: View {
+    @Binding var section: SectionModel
+    let context: ModelContext
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Summary text")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            TextEditor(text: Binding(
+                get: {
+                    // Ensure we always have at least one item backing the summary
+                    if section.items.isEmpty {
+                        let newItem = ItemModel(
+                            id: UUID(),
+                            headline: "",
+                            subheadline: nil,
+                            startDate: nil,
+                            endDate: nil,
+                            bullets: [],
+                            meta: [:]
+                        )
+                        context.insert(newItem)
+                        section.items = [newItem]
+                        try? context.save()
+                    }
+                    return section.items.first?.headline ?? ""
+                },
+                set: { newValue in
+                    guard !section.items.isEmpty else { return }
+                    // Update via a copy so SwiftData detects the change
+                    var updatedItems = section.items
+                    updatedItems[0].headline = newValue
+                    section.items = updatedItems
+                    try? context.save()
+                }
+            ))
+            .font(.body)
+            .frame(minHeight: 140, alignment: .topLeading)
+            .scrollContentBackground(.hidden)
+            .padding(8)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color(uiColor: .secondarySystemBackground))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color(uiColor: .separator), lineWidth: 0.5)
+            )
+        }
+        .padding(.vertical, 4)
     }
 }
