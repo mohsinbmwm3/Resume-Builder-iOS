@@ -33,12 +33,6 @@ Resume-Builder-iOS/
 └── PROJECT_STRUCTURE.md                      # This file
 ```
 
-## File Count
-
-- **Swift Files**: 11
-- **Configuration Files**: 4 (Info.plist, .gitignore, project.yml, etc.)
-- **Documentation Files**: 3 (README.md, SETUP.md, PROJECT_STRUCTURE.md)
-
 ## Architecture Layers
 
 ### 1. App Layer
@@ -87,11 +81,4 @@ Resume-Builder-iOS/
 - **SwiftUI**: UI framework
 - **SwiftData**: Data persistence
 - **UIKit**: PDF generation and sharing (via UIViewControllerRepresentable)
-
-## Next Steps
-
-1. Open the project in Xcode
-2. Follow SETUP.md for detailed setup instructions
-3. Build and run the app
-4. Start customizing and extending features
 
