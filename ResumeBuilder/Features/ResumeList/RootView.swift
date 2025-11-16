@@ -112,18 +112,18 @@ struct RootView: View {
         
         // Create detailed experience items
         let autodeskExp = ItemModel(
-            headline: "SENIOR SOFTWARE ENGINEER, AUTODESK",
+            headline: "LEAD IOS ENGINEER, NOVA APPS",
             subheadline: "2022-PRESENT",
             startDate: Date(timeIntervalSince1970: 1640995200), // Jan 1, 2022
             endDate: nil,
             bullets: [
-                "Lead a 6-engineer squad delivering 9 major releases of Fusion 360 & AutoCAD Mobile, driving +18% monthly active users and 99.3% crash-free sessions in 12 months.",
-                "Owned full-stack delivery, contributing across native mobile (iOS/Android) and backend services (Spring Boot microservices and Spring Batch pipelines).",
-                "Engineered scalable backend APIs for file sync, access control, and project migration workflows; collaborated with multiple client teams for seamless integration.",
-                "Developed an offline first sync layer (Core Data + NSOperations + Background Modes) that cut failed writes by 42% in poor connectivity scenarios, boosting user retention for iOS and Android app.",
-                "Integrated On-device AI and ML capabilities, slimmed a drawing-recognition model to run fully offline in <50MB, enabling real-time feature detection without cloud dependency."
+                "Lead a multi-platform squad delivering quarterly releases of the Nova productivity suite, improving mobile MAU by 18% and sustaining 99% crash-free sessions.",
+                "Own full-stack delivery across SwiftUI, Kotlin, and Spring Boot services, coordinating requirements with design, QA, and platform guilds.",
+                "Designed secure sync APIs for file collaboration and permissions, partnering with infra teams to roll out zero-downtime migrations.",
+                "Built an offline-first sync engine (Core Data + background tasks) that reduced failed writes in low-connectivity regions by 40%.",
+                "Piloted on-device ML document tagging, compressing the model to under 40 MB while keeping inference latency below 50 ms."
             ],
-            meta: ["location": "Pune, India"]
+            meta: ["location": "Austin, TX"]
         )
         
         // Create Summary section (no "Summary" headline - just bullets)
@@ -133,7 +133,7 @@ struct RootView: View {
             startDate: nil,
             endDate: nil,
             bullets: [
-                "Senior Software Engineer with 9+ years architecting secure, high performance mobile and backend solutions across CAD/CAM, retail, banking, and healthcare. Delivered apps serving millions with 99%+ crash free sessions. Skilled in Mobile App Development, Clean and Secure Architecture, Spring Boot, and AWS. Ready to drive user centric innovation in a senior/lead role."
+                "Lead Mobile Engineer with 9+ years architecting secure, high-performance apps across productivity, fintech, and health. Ships user-facing features end to end, partners tightly with product, and keeps quality/observability top of mind. Comfortable leading teams through ambiguous roadmaps and mentoring engineers across platforms."
             ],
             meta: [:]
         )
@@ -145,10 +145,10 @@ struct RootView: View {
             startDate: nil,
             endDate: nil,
             bullets: [
-                "iOS: Swift, SwiftUI, Objective-C, Combine, SceneKit, CoreData, SiriKit, AVFoundation, EventKit, MapKit, Pods, SPM, LaunchDarkly, CoreML, Autolayout",
-                "Flutter: Dart, Bloc, GetX, BLoC, Cupertino Widgets, Material Design, Provider",
-                "Android: Java, Kotlin, Android SDK",
-                "Architecture: MVVM, MVC, Clean Architecture"
+                "iOS: Swift, SwiftUI, Objective-C, Combine, CoreData, SiriKit, AVFoundation, MapKit, CoreML",
+                "Flutter: Dart, Bloc, Provider, Cupertino & Material libraries",
+                "Android: Kotlin, Jetpack, Compose, Retrofit",
+                "Architecture: MVVM, Clean Architecture, modularization"
             ],
             meta: [:]
         )
@@ -170,9 +170,8 @@ struct RootView: View {
             startDate: nil,
             endDate: nil,
             bullets: [
-                "Jenkins, Spinnaker, Docker, Browser Stack, Appium, Splunk, Dynatrace, Grafana, Firebase",
-                "Attended AWS Solutions Architect official AWS training workshop",
-                "Certified ScrumMaster (CSM)"
+                "Jenkins, GitHub Actions, Fastlane, Docker, XCTest, Appium, Firebase",
+                "Certified ScrumMaster (CSM) • AWS Solutions Architect training"
             ],
             meta: [:]
         )
@@ -195,20 +194,20 @@ struct RootView: View {
         
         // Create person with full details
         let person = Person(
-            fullName: "MOHSIN KHAN",
-            headline: "Senior Software Engineer",
-            email: "mohsinkhan845@gmail.com",
-            phone: "+919009301310",
-            location: "Magarpatta City, Pune MH, India 411028",
+            fullName: "Jordan Rivera",
+            headline: "Lead Mobile Engineer",
+            email: "jordan.rivera@example.com",
+            phone: "+1-555-010-2048",
+            location: "Austin, TX",
             links: [
-                LinkItem(label: "LinkedIn", url: "https://linkedin.com/in/mohsinkhan845"),
-                LinkItem(label: "GitHub", url: "https://github.com/mohsinbmwm3"),
-                LinkItem(label: "Medium", url: "https://medium.com/@mohsinkhan")
+                LinkItem(label: "LinkedIn", url: "https://linkedin.com/in/sample-candidate"),
+                LinkItem(label: "GitHub", url: "https://github.com/sample"),
+                LinkItem(label: "Website", url: "https://sample.dev")
             ]
         )
         
         var resume = Resume(
-            title: "Mohsin Khan - Senior Software Engineer",
+            title: "Sample Resume - Lead Mobile Engineer",
             person: person,
             sections: [summarySection, skillsSection, experienceSection],
             theme: .default,
